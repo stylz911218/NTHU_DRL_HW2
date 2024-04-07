@@ -45,8 +45,8 @@ class Agent(object):
         observation = np.expand_dims(observation, axis=0)
         observation = paddle.to_tensor(observation, dtype='float32')
         action = self.model(observation)
-        action = np.squeeze(paddle.argmax(action).numpy())
-        action = action.item()
+        action = paddle.argmax(action).numpy()[0]
+        # action = action.item()
         return action
 
 def preprocess_observation(observation, target_size=(4, 84, 84)):
