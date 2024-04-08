@@ -36,6 +36,7 @@ class Agent(object):
         self.model = self.load_model(model_path)
         self.skip = 4
         self.current_frame = 1
+        self.framestack = StackFrame(num_stack=4)
         self.action = None
 
     def load_model(self, model_path):
@@ -46,11 +47,15 @@ class Agent(object):
 
 
     def act(self, observation):
+        observation = preprocess_observation(observation)
         if self.current_frame == self.skip or self.action == None:
-            observation = preprocess_observation(observation)
-            obs = np.expand_dims(observation, axis=0)
-            obs1 = paddle.to_tensor(obs, dtype='float32')
-            action = self.model(obs1)
+            if self.action == None:
+                obs = self.framestack.reset(observation=observation)
+            else:
+                obs = self.framestack.update(observation=observation)
+            obs1 = np.expand_dims(obs, axis=0)
+            obs2 = paddle.to_tensor(obs1, dtype='float32')
+            action = self.model(obs2)
             action = np.squeeze(paddle.argmax(action).numpy())
             action = action.item()
             self.action = action
@@ -73,8 +78,22 @@ def preprocess_observation(observation):
     transfrom = T.Grayscale()
     togray_observation = transfrom(resized_observation)
     togray_observation = np.transpose(togray_observation, (2, 0, 1)).squeeze(0)
-    
-    # Stack observation
-    stacked_observation = np.stack([togray_observation] * 4, axis=0)
 
-    return stacked_observation
+    return togray_observation
+
+class StackFrame:
+
+    # Initialize
+    def __init__(self, num_stack) -> None:
+        self.frames = deque(maxlen=num_stack)
+        self.num_stack = num_stack
+
+    # Reset stack -> fill up
+    def reset(self, observation):
+        [self.frames.append(observation) for _ in range(self.num_stack)]
+        return self.frames
+    
+    # Step
+    def update(self, observation):
+        self.frames.append(observation)
+        return self.frames
