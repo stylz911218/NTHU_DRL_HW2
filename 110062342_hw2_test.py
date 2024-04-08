@@ -7,7 +7,7 @@ import gym
 from gym.spaces import Box
 from PIL import Image
 from collections import deque
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 import gym_super_mario_bros
 from nes_py.wrappers import JoypadSpace
