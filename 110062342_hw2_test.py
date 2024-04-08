@@ -3,7 +3,6 @@ import paddle.nn as nn
 import paddle.nn.functional as F
 import paddle.vision.transforms as T
 import numpy as np
-import cv2
 import gym
 from gym.spaces import Box
 from PIL import Image
