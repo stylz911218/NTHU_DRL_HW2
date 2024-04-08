@@ -3,4 +3,4 @@ tqdm
 requests
 argparse
 paddlepaddle
-OpenCV
+cv2
