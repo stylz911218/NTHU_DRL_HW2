@@ -38,6 +38,7 @@ class Agent(object):
         self.current_frame = 1
         self.framestack = StackFrame(num_stack=4)
         self.action = None
+        self.ep = 0
 
     def load_model(self, model_path):
         model = Model(num_inputs=4, num_actions=12)
@@ -48,9 +49,10 @@ class Agent(object):
 
     def act(self, observation):
         observation = preprocess_observation(observation)
-        if self.current_frame == self.skip or self.action == None:
-            if self.action == None:
+        if self.current_frame == self.skip or self.action == None or self.ep == 1623:
+            if self.action == None or self.ep == 1623:
                 obs = self.framestack.reset(observation=observation)
+                self.ep = 0
             else:
                 obs = self.framestack.update(observation=observation)
             obs1 = np.expand_dims(obs, axis=0)
@@ -60,9 +62,11 @@ class Agent(object):
             action = action.item()
             self.action = action
             self.current_frame = 1
+            self.ep += 1
             return action
         else:
             self.current_frame += 1
+            self.ep += 1
             return self.action
 
 
