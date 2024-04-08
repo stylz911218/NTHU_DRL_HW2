@@ -51,7 +51,8 @@ class Agent(object):
             obs = np.expand_dims(observation, axis=0)
             obs1 = paddle.to_tensor(obs, dtype='float32')
             action = self.model(obs1)
-            action = paddle.argmax(action).numpy()[0]
+            action = np.squeeze(paddle.argmax(action).numpy())
+            action = action.item()
             self.action = action
             self.current_frame = 1
             return action
