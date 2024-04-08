@@ -6,6 +6,15 @@ import numpy as np
 import gym
 from gym.spaces import Box
 from PIL import Image
+from collections import deque
+import matplotlib.pyplot as plt
+
+import gym_super_mario_bros
+from nes_py.wrappers import JoypadSpace
+from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
+
+env = gym_super_mario_bros.make('SuperMarioBros-v0')
+env = JoypadSpace(env, COMPLEX_MOVEMENT)
 
 class Model(nn.Layer):
 
@@ -32,41 +41,46 @@ class Agent(object):
     def __init__(self):
         model_path = '110062342_hw2_data.py'
         self.model = self.load_model(model_path)
+        self.skip = 4
+        self.current_frame = 1
+        self.action = None
 
     def load_model(self, model_path):
-        model = Model(num_inputs=4, num_actions=12)  # 修改为你的输入维度和动作空间维度
+        model = Model(num_inputs=4, num_actions=12)
         model_state_dict = paddle.load(model_path)
         model.set_state_dict(model_state_dict)
         return model
 
 
     def act(self, observation):
-        observation = preprocess_observation(observation)
-        observation = np.expand_dims(observation, axis=0)
-        observation = paddle.to_tensor(observation, dtype='float32')
-        action = self.model(observation)
-        action = paddle.argmax(action).numpy()[0]
-        # action = action.item()
-        return action
+        if self.current_frame == self.skip or self.action == None:
+            observation = preprocess_observation(observation)
+            obs = np.expand_dims(observation, axis=0)
+            obs1 = paddle.to_tensor(obs, dtype='float32')
+            action = self.model(obs1)
+            action = paddle.argmax(action).numpy()[0]
+            self.action = action
+            self.current_frame = 1
+            return action
+        else:
+            self.current_frame += 1
+            return self.action
 
-def preprocess_observation(observation, target_size=(4, 84, 84)):
-    observation = np.array(observation, dtype=np.uint8)  # 將數據類型轉換為8位元整數
-    # 將ndarray轉換為PIL Image
-    image = Image.fromarray(observation)
 
-    # 將圖像轉換為灰度
-    image = image.convert('L')
+def preprocess_observation(observation):
+    
+    # Resize
+    transforms = T.Compose(
+        [T.Resize((84,84)), T.Normalize(0, 255, data_format='HWC')]
+    )
+    resized_observation = transforms(observation)
+    
+    # To Gray
+    transfrom = T.Grayscale()
+    togray_observation = transfrom(resized_observation)
+    togray_observation = np.transpose(togray_observation, (2, 0, 1)).squeeze(0)
+    
+    # Stack observation
+    stacked_observation = np.stack([togray_observation] * 4, axis=0)
 
-    # Resize圖像
-    image = image.resize((target_size[1], target_size[2]))
-
-    # 將PIL Image轉換回ndarray
-    processed_observation = np.array(image)
-
-    # 將通道維度移到第一個維度
-    processed_observation = np.expand_dims(processed_observation, axis=0)
-
-    # 將圖像復制多次以構建 (4, 84, 84) 的形狀
-    processed_observation = np.tile(processed_observation, (target_size[0], 1, 1))
-
-    return processed_observation
+    return stacked_observation
