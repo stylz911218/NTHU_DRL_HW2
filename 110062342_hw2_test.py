@@ -39,6 +39,8 @@ class Agent(object):
         self.framestack = StackFrame(num_stack=4)
         self.action = None
         self.ep = 0
+        self.epsilon = 0.01
+        self.action_space = gym.spaces.Discrete(12)
 
     def load_model(self, model_path):
         model = Model(num_inputs=4, num_actions=12)
@@ -48,27 +50,30 @@ class Agent(object):
 
 
     def act(self, observation):
-        observation = preprocess_observation(observation)
-        if self.current_frame == self.skip or self.action == None or self.ep == 1623:
-            if self.action == None or self.ep == 1623:
-                obs = self.framestack.reset(observation=observation)
-                self.ep = 0
+        if np.random.rand() > self.epsilon:
+            observation = preprocess_observation(observation)
+            if self.current_frame == self.skip or self.action == None or self.ep == 1623:
+                if self.action == None or self.ep == 1623:
+                    obs = self.framestack.reset(observation=observation)
+                    self.ep = 0
+                else:
+                    obs = self.framestack.update(observation=observation)
+                
+                obs1 = np.expand_dims(obs, axis=0)
+                obs2 = paddle.to_tensor(obs1, dtype='float32')
+                action = self.model(obs2)
+                action = np.squeeze(paddle.argmax(action).numpy())
+                action = action.item()
+                self.action = action
+                self.current_frame = 1
+                self.ep += 1
+                return action
             else:
-                obs = self.framestack.update(observation=observation)
-            obs1 = np.expand_dims(obs, axis=0)
-            obs2 = paddle.to_tensor(obs1, dtype='float32')
-            action = self.model(obs2)
-            action = np.squeeze(paddle.argmax(action).numpy())
-            action = action.item()
-            self.action = action
-            self.current_frame = 1
-            self.ep += 1
-            return action
+                self.current_frame += 1
+                self.ep += 1
+                return self.action
         else:
-            self.current_frame += 1
-            self.ep += 1
-            return self.action
-
+            return 2 # only right
 
 def preprocess_observation(observation):
     
